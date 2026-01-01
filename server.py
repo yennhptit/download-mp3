@@ -10,21 +10,24 @@ app = FastAPI()
 @app.get("/download")
 def download_audio(url: str = Query(..., description="YouTube URL")):
     tmpdir = tempfile.mkdtemp()
-    output = os.path.join(tmpdir, "audio.%(ext)s")
+    output = os.path.join(tmpdir, "audio.%(ext)s")  # giữ nguyên định dạng gốc
 
     ydl_opts = {
         "format": "bestaudio/best",
         "outtmpl": output,
         "quiet": True,
-        "postprocessors": [{
-            "key": "FFmpegExtractAudio",
-            "preferredcodec": "mp3",
-        }],
+        # Không cần postprocessor → giữ nguyên file webm
+        # "postprocessors": [{
+        #     "key": "FFmpegExtractAudio",
+        #     "preferredcodec": "mp3",
+        # }],
     }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
-        return FileResponse(os.path.join(tmpdir, "audio.mp3"), filename="audio.mp3")
+            info = ydl.extract_info(url, download=True)
+            # Lấy đường dẫn file tải về
+            audio_file = ydl.prepare_filename(info)
+        return FileResponse(audio_file, filename=os.path.basename(audio_file))
     except Exception as e:
         return {"error": str(e)}
